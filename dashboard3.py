@@ -208,6 +208,201 @@ def dashboard_anual(df):
     with c2:
         graf_ccosto_dashboard_anual(df)
 
+def filtros_dashboard(df):
+    st.sidebar.title("Filtros")
+
+    historico = st.sidebar.checkbox("Resumen histórico")
+    servicio = st.sidebar.selectbox("Servicio",df["Tipo de Servicio"].unique().tolist())
+    año = st.sidebar.selectbox("Año", df["Año"].unique().tolist())
+    if año == 2023:
+        if historico:
+            return df[(df["Tipo de Servicio"]==servicio)&(df.Año=="2023")], 1
+        mes = st.sidebar.selectbox("Mes", df.Mes[df.Año == "2023"].unique().tolist())
+        return df[(df["Tipo de Servicio"]==servicio)&(df.Año=="2023")&(df.Mes==mes)], 0
+    else:
+        if historico:
+            return df[(df["Tipo de Servicio"]==servicio)&(df.Año==año)], 1
+        mes = st.sidebar.selectbox("Mes", df["Mes"].unique().tolist())
+        return df[(df["Tipo de Servicio"]==servicio)&(df.Año==año)&(df.Mes==mes)], 0
+    
+def porc_no_ejec_dashboard_servicio(df):
+    ejec = df.Ejecutada[df.Ejecutada=="Si"].value_counts()
+    pend = df.Ejecutada[df.Ejecutada=="No"].value_counts()
+    total = np.sum(ejec)+np.sum(pend)
+    porc = round(np.sum(pend)/total*100)
+
+    if porc >= 40:
+        color = 'color: red; font-size: 50px; text-align: center'
+    elif porc >= 30:
+        color = 'color: orange; font-size: 50px; text-align: center'
+    else:
+        color = 'color: #5DD39E; font-size: 50px; text-align: center'
+
+    div_style = "background: linear-gradient(to right, #0A0908, #22333B);padding:1px;border-radius:5px;text-align:center;"
+    title_style = "font-size:13px;font-weight:lighter;color:#F2F4F3;margin-bottom:10px;"
+    titulo = "Porcentaje total de pendientes"
+
+    metric_html = f"<div style= '{div_style}'>"\
+        f"<span style= '{title_style}'>{titulo}</span></br>"\
+        f"<span style= '{color}'>{porc}%</span></div>"
+    if total == 0:
+        return st.write("Periodo no registrado")
+    else:
+        return st.write(metric_html,unsafe_allow_html=True)
+    
+def porc_ejec_dashboard_servicio(df):
+    ejec = df.Ejecutada[df.Ejecutada=="Si"].value_counts()
+    pend = df.Ejecutada[df.Ejecutada=="No"].value_counts()
+    total = np.sum(ejec)+np.sum(pend)
+    porc = round(np.sum(ejec)/total*100)
+
+    if porc >= 70:
+        color = 'color: #009B72; font-size: 50px;'
+    elif porc >= 60:
+        color = 'color: orange; font-size: 50px;'
+    else:
+        color = 'color: red; font-size: 50px;'
+
+    div_style = "background: linear-gradient(to right, #22333B, #0A0908);padding:1px;border-radius:5px;text-align:center;"
+    title_style = "font-size:13px;font-weight:lighter;color:#F2F4F3;margin-bottom:10px;"
+    titulo = "Porcentaje total de ejecutadas"
+
+    metric_html = f"<div style= '{div_style}'>"\
+        f"<span style= '{title_style}'>{titulo}</span></br>"\
+        f"<span style= '{color}'>{porc}%</span></div>"
+    if total == 0:
+        return st.write("Periodo no registrado")
+    else:
+        return st.write(metric_html,unsafe_allow_html=True)
+    
+def cant_pend_dashboard(df):
+    pend = df.Ejecutada[df.Ejecutada=="No"].count()
+
+    color = 'color: #F5A65B; font-size: 50px; text-align: center'
+    div_style = "background: linear-gradient(to right, #0A0908, #22333B);padding:1px;border-radius:5px;text-align:center;"
+    title_style = "font-size:13px;font-weight:lighter;color:#F2F4F3;margin-bottom:10px;"
+    titulo = "Cantidad total de pendientes"
+
+    metric_html = f"<div style= '{div_style}'>"\
+        f"<span style= '{title_style}'>{titulo}</span></br>"\
+        f"<span style= '{color}'>{pend}</span></div>"
+    
+    return st.write(metric_html,unsafe_allow_html=True)
+
+def cant_ejec_dashboard(df):    
+    ejec = df.Ejecutada[df.Ejecutada=="Si"].count()
+
+    color = 'color: #32E875; font-size: 50px; text-align: center'
+    div_style = "background: linear-gradient(to right, #22333B, #0A0908);padding:1px;border-radius:5px;text-align:center;"
+    title_style = "font-size:13px;font-weight:lighter;color:#F2F4F3;margin-bottom:10px;"
+    titulo = "Cantidad total de ejecutadas"
+
+    metric_html = f"<div style= '{div_style}'>"\
+        f"<span style= '{title_style}'>{titulo}</span></br>"\
+        f"<span style= '{color}'>{ejec}</span></div>"
+    
+    return st.write(metric_html,unsafe_allow_html=True)
+
+def graf_ccosto_dashboard(df):
+    conteo_ccosto = df.groupby(["Fecha","Nombre CCosto"]).size().reset_index(name="Cantidad")
+
+    fig = px.bar(conteo_ccosto, x="Fecha",y="Cantidad",color="Nombre CCosto")
+
+    fig.update_layout(xaxis_title='Fecha',
+                      yaxis_title='Cantidad de solicitudes',
+                      title={
+                          "text":"Cantidad diaria de solicitudes por centro de costos",
+                          "x":0.5,
+                          "xanchor": "center"},
+                      title_font_color= "#D8E2DC",height=330)
+
+    st.plotly_chart(fig,use_container_width=True) 
+
+def graf_ccosto_pie_dashboard(df):
+    conteo_ccosto = df.groupby("Nombre CCosto").size().reset_index(name="Cantidad")
+    cant_ccosto_filtrado = conteo_ccosto.groupby('Nombre CCosto').filter(lambda x: x['Cantidad'].sum() > 2)
+
+    fig = px.pie(cant_ccosto_filtrado,values="Cantidad",names="Nombre CCosto",hole=.6)
+
+    fig.update_layout(
+        title={
+            "text":"Total mensual por Centros de costo",
+            "x":0.5,
+            "xanchor": "center"},
+        title_font_color= "#D8E2DC",
+        font={
+            "size":13}, height=350)
+
+    st.plotly_chart(fig,use_container_width=True)
+
+def graf_dias_dashboard(df):
+    conteo_servicio = df.groupby(["Tipo de Servicio","Fecha"]).size().reset_index(name="Cantidad")
+    fig = px.line(conteo_servicio, x="Fecha",y="Cantidad",markers=True)
+
+    fig.update_layout(xaxis_title='Fecha',
+                      yaxis_title='Cantidad de solicitudes',
+                      title={
+                          "text":"Cantidad diaria de solicitudes",
+                          "x":0.5,
+                          "xanchor": "center"},
+                      title_font_color= "#D8E2DC", height=255)
+    
+    st.plotly_chart(fig,use_container_width=True)
+
+def graf_pie_campus_dashboard(df):
+    conteo_campus = df.groupby(["Ubicación del Trabajo/Servicio"]).size().reset_index(name="Cantidad")
+
+    fig = px.pie(conteo_campus,values="Cantidad",names="Ubicación del Trabajo/Servicio",hole=.5)
+
+    fig.update_layout(
+        title={
+            "text":"Porcentaje de solicitudes por campus",
+            "x":0.5,
+            "xanchor": "center"},
+        title_font_color= "#D8E2DC",
+        font={
+            "size":13}, height=320)
+
+    st.plotly_chart(fig,use_container_width=True)    
+
+def dashboard_personalizado(df):
+    filtro, titulo = filtros_dashboard(df)
+
+    size_title = 'font-size: 22px; text-align: center; color: #D8E2DC; font-weight: lighter'
+    if titulo == 1:
+            title = f"El servicio de {filtro['Tipo de Servicio'].unique().tolist()[0]} históricamente en el año {filtro.Año.unique().tolist()[0]} presenta los siguientes indicadores"
+            st.write(f'<p style="{size_title}">{title}</p>',unsafe_allow_html=True)
+    else:
+        title = f"El servicio de {filtro['Tipo de Servicio'].unique().tolist()[0]} en el mes de {filtro.Mes.unique().tolist()[0]} del año {filtro.Año.unique().tolist()[0]} presenta los siguientes indicadores"
+        st.write(f'<p style="{size_title}">{title}</p>',unsafe_allow_html=True)
+
+    c1,c2,c3,c4 = st.columns(4)
+    with c1:
+        porc_no_ejec_dashboard_servicio(filtro)
+
+    with c2:
+        porc_ejec_dashboard_servicio(filtro)
+
+    with c3:
+        cant_pend_dashboard(filtro)
+
+    with c4:
+        cant_ejec_dashboard(filtro)
+
+    c1,c2 = st.columns(2)
+    with c1:
+        graf_ccosto_dashboard(filtro)
+
+    with c2:
+        graf_ccosto_pie_dashboard(filtro)
+
+    c1,c2 = st.columns(2)  
+    with c1:
+        graf_dias_dashboard(filtro)
+    with c2:
+        pass
+        graf_pie_campus_dashboard(filtro)
+
 def principal():
     size_title = 'font-size: 24px; text-align: center; color: #D8E2DC; font-weight: lighter'
     title = "Aplicación para análisis exploratorio y visual de la DSL"
@@ -219,5 +414,14 @@ def principal():
     if archivo_excel is None:
         df = df_mod(df_default)
         dashboard_anual(df)
+    else:
+        opciones = st.sidebar.radio("Tipo de análisis", options=["Dashboard Anual","Dashboard Personalizado","Análisis Exploratorio","Gráficos"])    
+        bd = cargar_datos(archivo_excel)
+        df = df_mod(bd)
+
+        if opciones == "Dashboard Personalizado":
+            dashboard_personalizado(df)
+        elif opciones == "Dashboard Anual":
+            dashboard_anual(df)
 
 principal()
